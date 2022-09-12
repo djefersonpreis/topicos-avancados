@@ -9,3 +9,9 @@ BASE DE CONHECIMENTO
 
 ===================================================================================================
 
+- A princípio, o que será requisito para a avaliação:
+
+-> RFM 
+-> Cluster
+-> Mapa 
+-> Probabilidade
