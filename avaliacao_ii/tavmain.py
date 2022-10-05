@@ -86,6 +86,9 @@ with taberp:
 with tabbi:
     st.header('Dados do Business Intelligence')
     with st.expander('Região'):
+
+        st.dataframe(rg_reg)
+
         aggr = st.selectbox('Agregador Região', ['sum', 'mean'])
         st.dataframe(rg_reg.pivot_table(index='Region', columns='ano', values='yhat', aggfunc=aggr, fill_value=0))
     
@@ -99,6 +102,9 @@ with tabbi:
             st.altair_chart(proj + real)
 
     with st.expander('Segmento'):
+
+        st.dataframe(rg_seg)
+
         aggs = st.selectbox('Agregador Segmento', ['sum', 'mean'])
         st.dataframe(rg_seg.pivot_table(index='Segment', columns='ano', values='yhat', aggfunc=aggs, fill_value=0))
     
@@ -111,8 +117,6 @@ with tabbi:
             real = alt.Chart(gr_base).mark_line(color='red').encode(x='OYear', y='Sales')
             st.altair_chart(proj + real)
 
-    # st.dataframe(reg_mer)
-    # st.dataframe(reg_reg)
 
 
     # TODO: MAPA dos mercados, das regiões e dos países 
