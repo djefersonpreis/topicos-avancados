@@ -1,6 +1,14 @@
 import pandas as pd
 import streamlit as st
 import altair as alt
+import plotly
+import plotly.graph_objs as go 
+from plotly import tools
+from plotly.offline import init_notebook_mode, plot, iplot
+import plotly.express as px 
+from streamlit_folium import folium_static 
+import folium
+from folium.plugins import MarkerCluster
 
 st.title('Trabalho II - Tópicos Avançados')
 
@@ -15,10 +23,11 @@ def load_database():
         pd.read_feather('database/clusterizacao_estado.feather'), \
         pd.read_feather('database/regressao_regiao.feather'), \
         pd.read_feather('database/regressao_segment.feather'), \
-        pd.read_feather('database/localizacao.feather')
+        pd.read_feather('database/localizacao.feather'), \
+        pd.read_feather('database/estadosUS.feather')
 
 
-base, cla_cus, cla_cat, cla_reg, cla_seg, clu_est, reg_reg, reg_seg, coords = load_database()
+base, cla_cus, cla_cat, cla_reg, cla_seg, clu_est, reg_reg, reg_seg, coords, estados = load_database()
 
 rg_reg = reg_reg.copy()
 rg_reg['ano'] = rg_reg['ds'].dt.year
@@ -68,10 +77,9 @@ with taberp:
         st.dataframe(clu_est_cus[['cluster', 'clm_sales', 'clm_profit',
                      'clm_quantity', 'clr_days', 'clf_sales', 'clf_profit']])
 
-    # TODO: MAPA com as coordenadas do cliente
     with st.expander('Entregas (Mapa):'):
         coords_con = base_con[['Order ID', 'Order Date',
-                               'Ship Date', 'Region', 'State', 'City']].copy()
+                               'Ship Date', 'Region', 'State', 'City', 'Profit']].copy()
         coords_con = coords_con.merge(
             coords, left_on=['City'], right_on=['cidade'], how='left')
         coords_con = coords_con.rename(columns={
@@ -80,6 +88,23 @@ with taberp:
         st.dataframe(
             coords_con[['Order ID', 'Order Date', 'Ship Date', 'Region', 'State', 'City']])
         st.map(coords_con)
+
+        m = folium.Map(location=[0, 0], tiles='openstreetmap', zoom_start=2)
+        for id,row in coords_con.iterrows():
+            folium.Marker(location=[row['lat'],row['lon']], popup=row['Profit']).add_to(m)
+        folium_static(m)
+
+    with st.expander('Cluster de Pedidos (Mapa):'): 
+        data_pedidos = base.copy()
+        data_pedidos = data_pedidos.merge(coords, left_on=['City'], right_on=['cidade'], how='left')
+        data_pedidos = data_pedidos.fillna(0) 
+
+        m2 = folium.Map(location=[0,0], tiles='cartodbpositron', zoom_start=2)
+        mc = MarkerCluster()
+        for idx, row in data_pedidos.iterrows():
+            mc.add_child(folium.Marker([row['lat'], row['lng']],popup=row['State']))
+        m2.add_child(mc)
+        folium_static(m2) 
 
     # if st.checkbox('Categoria'):
 
@@ -146,6 +171,16 @@ with tabbi:
             st.dataframe(base_reg[['Order ID', 'Order Date', 'Ship Date', 'Ship Mode',
                          'Customer ID', 'Customer Name', 'Segment', 'City', 'Sales', 'Profit']])
 
+    with st.expander('Vendas Por Região (Mapa):'):
+        coords_vendas_reg = base.groupby('State')['Sales'].sum().reset_index()
+        coords_vendas_reg = coords_vendas_reg.merge(estados, left_on=['State'], right_on=['name'], how='left')
+        coords_vendas_reg.drop(columns=['name'])
+
+        fig = px.choropleth(coords_vendas_reg,locations='usps',locationmode='USA-states',color='Sales')
+        fig.update_layout(title='Vendas por Estado', geo_scope='usa', template="plotly_dark")
+        st.plotly_chart(fig)
+        
+
     with st.expander('Segmento'):
 
         # st.dataframe(rg_seg)
@@ -184,6 +219,13 @@ with tabbi:
             if (st.checkbox('Registros não reconhecidos para o segmento: ')):
                 st.dataframe(
                     coords_seg_undefined[['Region', 'State', 'City', 'lat', 'lon']])
+
+            coords_vendas_seg = base_seg.groupby('State')['Sales'].sum().reset_index()
+            coords_vendas_seg = coords_vendas_seg.merge(estados, left_on=['State'], right_on=['name'], how='left')
+            coords_vendas_seg.drop(columns=['name'])
+            fig = px.choropleth(coords_vendas_seg,locations='usps',locationmode='USA-states',color='Sales')
+            fig.update_layout(title='Vendas por Estado', geo_scope='usa', template="plotly_dark")
+            st.plotly_chart(fig)
 
             st.dataframe(base_seg[['Order ID', 'Order Date', 'Ship Date', 'Ship Mode',
                          'Customer ID', 'Customer Name', 'Region', 'City', 'Sales', 'Profit']])
