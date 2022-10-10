@@ -24,6 +24,8 @@ rg_reg['ano'] = rg_reg['ds'].dt.year
 rg_seg = reg_seg.copy()
 rg_seg['ano'] = rg_seg['ds'].dt.year
 
+coords = coords[coords['pais'] == 'United States']
+
 # st.dataframe(base) 
 # st.dataframe(cla_cat) 
 
@@ -59,6 +61,15 @@ with taberp:
         st.dataframe(clu_est_cus[['cluster', 'clm_sales', 'clm_profit', 'clm_quantity', 'clr_days', 'clf_sales', 'clf_profit']])
 
     # TODO: MAPA com as coordenadas do cliente
+
+    with st.expander('Entregas (Mapa):'):
+        coords_con = base_con[['Order ID', 'Order Date', 'Ship Date', 'Region', 'State', 'City']].copy()
+        coords_con = coords_con.merge(coords, left_on=['City'], right_on=['cidade'], how='left')
+        coords_con = coords_con.rename(columns={
+            'lng': 'lon'
+        })
+        st.dataframe(coords_con[['Order ID', 'Order Date', 'Ship Date', 'Region', 'State', 'City']])
+        st.map(coords_con)
     
     # if st.checkbox('Categoria'):
 
@@ -117,6 +128,8 @@ with tabbi:
             real = alt.Chart(gr_base).mark_line(color='red').encode(x='OYear', y='Sales')
             st.altair_chart(proj + real)
 
+    with st.expander('Mapas dos Mercados'):
+        a = 1
 
 
     # TODO: MAPA dos mercados, das regiões e dos países 
