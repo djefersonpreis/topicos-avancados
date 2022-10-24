@@ -1,0 +1,3 @@
+Probabilidade => Lucro..., por país;
+Associação (KNN - Vizinhos mais próximos) => por País; Sub-categoria; Categoria
+Outliers => País    
