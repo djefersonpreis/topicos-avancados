@@ -11,9 +11,14 @@ def load_database():
         pd.read_feather('database/clusterizacao_pais.feather'), \
         pd.read_feather('database/regressao_mercado.feather'), \
         pd.read_feather('database/regressao_regiao.feather'), \
+        pd.read_feather('database/knn_pais.feather'), \
+        pd.read_feather('database/knn_produto.feather'), \
+        pd.read_feather('database/knn_subcategoria.feather'), \
+        pd.read_feather('database/outliers_pais.feather'), \
+        pd.read_feather('database/probabilidade_pais.feather'), \
         pd.read_feather('database/localizacao.feather')
     
-gs, cla_con, clu_pai, reg_mer, reg_reg, coords = load_database()
+gs, cla_con, clu_pai, reg_mer, reg_reg, knn_pais, knn_pro, knn_sub, out_pai, prb_pai, coords = load_database()
 
 rg_mer = reg_mer.copy()
 rg_mer['ano'] = rg_mer['ds'].dt.year
@@ -32,7 +37,14 @@ with taberp:
     gs_con = gs[gs['Customer ID'] == consumidor].reset_index()
     # st.dataframe(gs_con)
     cla_con_con = cla_con[cla_con['Customer ID'] == consumidor].reset_index()
-    # st.dataframe(cla_con_con)  
+    # st.dataframe(cla_con_con) 
+
+    st.dataframe(knn_pais)
+    with st.expander('Países similares'):
+        st.write(gs_con['Country'][0])
+        st.dataframe(knn_pais[knn_pais['referencia'] == gs_con['Country'][0]]) 
+        st.write('Probabilidade:')
+        st.dataframe(prb_pai[prb_pai['Country'] == gs_con['Country'][0]])
 
     st.dataframe(gs_con[['Customer Name', 'Segment']].drop_duplicates())
     cl1, cl2, cl3, cl4 = st.columns(4)
@@ -83,6 +95,11 @@ with tabbi:
             real = alt.Chart(gr_gs).mark_line(color='red').encode(x='OYear', y='Sales')
             st.altair_chart(proj + real)
 
+    with st.expander('RFM/Outliers'):
+        out_pais = st.multiselect('Países:', gs_con['Country'].unique())
+        st.dataframe(out_pai[out_pai['referencia'].isin(out_pais)])
+
+
     # st.dataframe(reg_mer)
     # st.dataframe(reg_reg)
 
@@ -92,4 +109,18 @@ with tabbi:
 
 with tabstone:
     st.header('Dados do Comércio Eletrônico')
-    st.dataframe(coords)
+    consumidor = st.selectbox('Selecione o Consumidor: ', gs['Customer ID'].unique())
+    gs_cli = gs[gs['Customer ID'] == consumidor][['Product ID', 'Product Name', 'Sub-Category']].reset_index()
+    # st.dataframe(gs_cli)
+    for subcategoria in gs_cli['Sub-Category'].unique():
+        st.info(subcategoria)
+        st.warning('Similares')
+        for idx, rw in knn_sub[knn_sub['referencia'] == subcategoria].iterrows():
+            st.error(rw['vizinho'])
+    for index, row in gs_cli.iterrows():
+        st.info('{0}({1})'.format(row['Product Name'], row['Product ID']))
+        st.warning('Similares')
+        for idx, rw in knn_pro[knn_pro['referencia'] == row['Product Name']].iterrows():
+            st.error(rw['vizinho'])
+
+
