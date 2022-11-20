@@ -10,7 +10,7 @@ from streamlit_folium import folium_static
 import folium
 from folium.plugins import MarkerCluster
 
-st.title('Trabalho II - Tópicos Avançados')
+st.title('Trabalho III - Tópicos Avançados')
 
 
 @st.cache
@@ -23,11 +23,17 @@ def load_database():
         pd.read_feather('database/clusterizacao_estado.feather'), \
         pd.read_feather('database/regressao_regiao.feather'), \
         pd.read_feather('database/regressao_segment.feather'), \
+        pd.read_feather('database/knn_estado.feather'), \
+        pd.read_feather('database/knn_produto.feather'), \
+        pd.read_feather('database/knn_subcategoria.feather'), \
+        pd.read_feather('database/knn_categoria.feather'), \
+        pd.read_feather('database/outliers_estado.feather'), \
+        pd.read_feather('database/probabilidade_estado.feather'), \
         pd.read_feather('database/localizacao.feather'), \
         pd.read_feather('database/estadosUS.feather')
 
 
-base, cla_cus, cla_cat, cla_reg, cla_seg, clu_est, reg_reg, reg_seg, coords, estados = load_database()
+base, cla_cus, cla_cat, cla_reg, cla_seg, clu_est, reg_reg, reg_seg, knn_est, knn_pro, knn_sub, knn_cat, out_est, prb_est, coords, estados = load_database()
 
 rg_reg = reg_reg.copy()
 rg_reg['ano'] = rg_reg['ds'].dt.year
@@ -52,6 +58,13 @@ with taberp:
     # st.dataframe(base_con)
     cla_cus_con = cla_cus[cla_cus['Customer ID'] == consumidor].reset_index()
     # st.dataframe(cla_cus_con)
+
+    # st.dataframe(knn_est)
+    with st.expander('Estados similares'):
+        st.write(base_con['State'][0])
+        st.dataframe(knn_est[knn_est['referencia'] == base_con['State'][0]]) 
+        st.write('Probabilidade:')
+        st.dataframe(prb_est[prb_est['State'] == base_con['State'][0]])
 
     st.dataframe(base_con[['Customer Name', 'Segment']].drop_duplicates())
     cl1, cl2, cl3, cl4 = st.columns(4)
@@ -139,17 +152,17 @@ with tabbi:
         st.dataframe(rg_reg.pivot_table(index='Region', columns='ano',
                      values='yhat', aggfunc=aggr, fill_value=0))
 
-        # if st.checkbox('Detalhar Região'):
-        regiao = st.selectbox('Região:', rg_reg['Region'].unique())
-        gr_reg = rg_reg[rg_reg['Region'] == regiao].groupby(
-            'ano')['yhat'].sum().reset_index()
-        proj = alt.Chart(gr_reg).mark_line(
-            color='blue').encode(x='ano', y='yhat')
-        gr_base = base[base['Region'] == regiao].groupby(
-            'OYear')['Sales'].sum().reset_index()
-        real = alt.Chart(gr_base).mark_line(
-            color='red').encode(x='OYear', y='Sales')
-        st.altair_chart(proj + real)
+        if st.checkbox('Detalhar Região'):
+            regiao = st.selectbox('Região:', rg_reg['Region'].unique())
+            gr_reg = rg_reg[rg_reg['Region'] == regiao].groupby(
+                'ano')['yhat'].sum().reset_index()
+            proj = alt.Chart(gr_reg).mark_line(
+                color='blue').encode(x='ano', y='yhat')
+            gr_base = base[base['Region'] == regiao].groupby(
+                'OYear')['Sales'].sum().reset_index()
+            real = alt.Chart(gr_base).mark_line(
+                color='red').encode(x='OYear', y='Sales')
+            st.altair_chart(proj + real)
 
         if (st.checkbox('Entregas na Região (Mapa):')):
             base_reg = base[base['Region'] == regiao].reset_index()
@@ -170,6 +183,10 @@ with tabbi:
 
             st.dataframe(base_reg[['Order ID', 'Order Date', 'Ship Date', 'Ship Mode',
                          'Customer ID', 'Customer Name', 'Segment', 'City', 'Sales', 'Profit']])
+
+    with st.expander('RFM/Outliers'):
+        out_estado = st.multiselect('Estados:', base['State'].unique())
+        st.dataframe(out_est[out_est['referencia'].isin(out_estado)])
 
     with st.expander('Vendas Por Região (Mapa):'):
         coords_vendas_reg = base.groupby('State')['Sales'].sum().reset_index()
@@ -232,3 +249,16 @@ with tabbi:
 
 with tabstone:
     st.header('Dados do Comércio Eletrônico')
+    consumidor = st.selectbox('Selecione o Consumidor: ', base['Customer ID'].unique())
+    cliente = base[base['Customer ID'] == consumidor][['Product ID', 'Product Name', 'Sub-Category']].reset_index()
+    # st.dataframe(cliente)
+    for subcategoria in cliente['Sub-Category'].unique():
+        st.info(subcategoria)
+        st.warning('Similares')
+        for idx, rw in knn_sub[knn_sub['referencia'] == subcategoria].iterrows():
+            st.error(rw['vizinho'])
+    for index, row in cliente.iterrows():
+        st.info('{0}({1})'.format(row['Product Name'], row['Product ID']))
+        st.warning('Similares')
+        for idx, rw in knn_pro[knn_pro['referencia'] == row['Product Name']].iterrows():
+            st.error(rw['vizinho'])
